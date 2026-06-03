@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大高人 — 入会申請</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #c8a96e;
+    --gold-dim: rgba(200,169,110,0.25);
+    --gold-faint: rgba(200,169,110,0.08);
+    --bg: #0a1628;
+    --bg2: #0d2040;
+    --text: #e8e0d0;
+    --text-muted: rgba(232,224,208,0.55);
+    --red: #e06060;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(150deg, #0a1628 0%, #0d2040 55%, #071830 100%);
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: rgba(0,0,0,0.35);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+  .logo-circle {
+    width: 40px; height: 40px;
+    border: 1.5px solid var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px; color: var(--gold);
+    flex-shrink: 0;
+  }
+  .logo-text { font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 600; letter-spacing: .15em; }
+  .logo-sub { font-size: 10px; letter-spacing: .22em; color: rgba(200,169,110,0.65); margin-top: 2px; }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 14px 24px;
+  }
+  .progress-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .step-dot {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    flex: 1;
+    cursor: default;
+  }
+  .step-circle {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text-muted);
+    transition: all .3s;
+  }
+  .step-dot.active .step-circle { border-color: var(--gold); color: var(--gold); background: var(--gold-faint); }
+  .step-dot.done .step-circle { border-color: var(--gold); background: var(--gold); color: #0a1628; }
+  .step-label { font-size: 10px; letter-spacing: .08em; color: var(--text-muted); transition: color .3s; }
+  .step-dot.active .step-label, .step-dot.done .step-label { color: var(--gold); }
+  .step-line { flex: 1; height: 1px; background: var(--gold-dim); margin-bottom: 18px; transition: background .3s; }
+  .step-line.done { background: var(--gold); }
+
+  /* ── Main ── */
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn .35s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  /* ── Screen heading ── */
+  .screen-head { text-align: center; margin-bottom: 36px; }
+  .screen-title { font-family: 'Shippori Mincho', serif; font-size: 20px; letter-spacing: .2em; margin-bottom: 10px; }
+  .screen-desc { font-size: 13px; color: var(--text-muted); line-height: 1.9; letter-spacing: .05em; }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: linear-gradient(90deg,transparent,var(--gold-dim),transparent); margin: 28px 0; }
+
+  /* ── Fields ── */
+  .field { margin-bottom: 22px; }
+  .field-label {
+    font-size: 11px; letter-spacing: .14em; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .req { background: var(--gold); color: #0a1628; font-size: 9px; padding: 1px 5px; border-radius: 3px; letter-spacing: .04em; }
+  .opt { border: 1px solid var(--gold-dim); color: var(--text-muted); font-size: 9px; padding: 1px 5px; border-radius: 3px; }
+
+  input[type=text], input[type=email], input[type=number], textarea {
+    width: 100%;
+    background: var(--gold-faint);
+    border: 1px solid var(--gold-dim);
+    border-radius: 6px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    transition: border-color .2s, background .2s;
+    outline: none;
+    resize: vertical;
+  }
+  input:focus, textarea:focus {
+    border-color: var(--gold);
+    background: rgba(200,169,110,0.06);
+  }
+  input::placeholder, textarea::placeholder { color: rgba(180,170,150,0.3); }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, #c8a96e, #a8893e);
+    border: none; border-radius: 8px;
+    color: #0a1628;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px; font-weight: 500; letter-spacing: .1em;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: none;
+    border: 1px solid var(--gold-dim);
+    border-radius: 6px;
+    color: var(--gold);
+    padding: 10px 22px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px; letter-spacing: .08em;
+    transition: background .2s;
+  }
+  .btn-secondary:hover { background: var(--gold-faint); }
+
+  .btn-row { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 14px; }
+
+  .hint { text-align: center; font-size: 11px; color: rgba(200,169,110,.55); margin-top: 9px; letter-spacing: .07em; }
+
+  /* ── Confirm rows ── */
+  .confirm-row {
+    display: flex; gap: 14px;
+    padding: 13px 0;
+    border-bottom: 1px solid rgba(200,169,110,.1);
+  }
+  .confirm-label { font-size: 11px; letter-spacing: .1em; color: var(--gold); width: 130px; flex-shrink: 0; padding-top: 2px; }
+  .confirm-val { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.7; }
+  .confirm-val.empty { color: rgba(200,169,110,.25); font-style: italic; }
+
+  /* ── Sending ── */
+  #screen-sending { text-align: center; padding: 80px 0; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 2px solid var(--gold-dim);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Done ── */
+  #screen-done { text-align: center; padding: 60px 0; }
+  .checkmark-wrap {
+    width: 64px; height: 64px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px;
+    animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from { transform: scale(0); opacity:0; } to { transform: scale(1); opacity:1; } }
+  .checkmark-wrap svg { width: 28px; height: 28px; stroke: var(--gold); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Error ── */
+  #screen-error { text-align: center; padding: 60px 0; }
+  .error-icon { font-size: 40px; color: var(--red); margin-bottom: 20px; }
+  .error-msg { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-circle">大</div>
+  <div>
+    <div class="logo-text">大高人</div>
+    <div class="logo-sub">OKOJIN — 入会申請</div>
+  </div>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="step-dot active" id="dot-1">
+      <div class="step-circle">1</div>
+      <div class="step-label">入力</div>
+    </div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step-dot" id="dot-2">
+      <div class="step-circle">2</div>
+      <div class="step-label">確認</div>
+    </div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step-dot" id="dot-3">
+      <div class="step-circle">3</div>
+      <div class="step-label">完了</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ① 入力フォーム -->
+  <div id="screen-form" class="screen active">
+    <div class="screen-head">
+      <div class="screen-title">入会申請フォーム</div>
+      <div class="screen-desc">埼玉県立大宮高校の卒業生コミュニティへようこそ。<br>以下の項目をご入力ください。</div>
+    </div>
+    <div class="divider"></div>
+
+    <div class="field">
+      <div class="field-label">名前 <span class="req">必須</span></div>
+      <input type="text" id="f-name" placeholder="例：大宮 太郎" oninput="checkRequired()">
+    </div>
+    <div class="field">
+      <div class="field-label">ふりがな <span class="req">必須</span></div>
+      <input type="text" id="f-furigana" placeholder="例：おおみや たろう" oninput="checkRequired()">
+    </div>
+    <div class="field">
+      <div class="field-label">卒業年 <span class="req">必須</span></div>
+      <input type="text" id="f-graduYear" placeholder="例：2005（西暦）" oninput="checkRequired()">
+    </div>
+    <div class="field">
+      <div class="field-label">メールアドレス <span class="req">必須</span></div>
+      <input type="email" id="f-email" placeholder="例：taro@example.com" oninput="checkRequired()">
+    </div>
+    <div class="divider"></div>
+    <div class="field">
+      <div class="field-label">現職 <span class="opt">任意</span></div>
+      <input type="text" id="f-currentJob" placeholder="例：株式会社〇〇　営業部長">
+    </div>
+    <div class="field">
+      <div class="field-label">仕事の内容 <span class="opt">任意</span></div>
+      <textarea id="f-job" rows="3" placeholder="現在の仕事内容を簡単に教えてください"></textarea>
+    </div>
+    <div class="field">
+      <div class="field-label">これまでの経歴 <span class="opt">任意</span></div>
+      <textarea id="f-career" rows="3" placeholder="これまでのキャリアを記入してください"></textarea>
+    </div>
+    <div class="field">
+      <div class="field-label">大学 <span class="opt">任意</span></div>
+      <input type="text" id="f-university" placeholder="例：早稲田大学　政治経済学部">
+    </div>
+    <div class="field">
+      <div class="field-label">高校時代の主な活動 <span class="opt">任意</span></div>
+      <input type="text" id="f-clubActivity" placeholder="例：野球部、文化祭実行委員">
+    </div>
+    <div class="field">
+      <div class="field-label">大学進路を決めた経緯 <span class="opt">任意</span></div>
+      <textarea id="f-univReason" rows="4" placeholder="大学・学部を選んだ理由を教えてください"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn-primary" id="btn-to-confirm" onclick="goConfirm()" disabled>内容を確認する →</button>
+    <div class="hint" id="hint-required">※ 必須項目（名前・ふりがな・卒業年・メールアドレス）をすべて入力してください</div>
+  </div>
+
+  <!-- ② 確認画面 -->
+  <div id="screen-confirm" class="screen">
+    <div class="screen-head">
+      <div class="screen-title">入力内容の確認</div>
+      <div class="screen-desc">以下の内容で登録します。<br>よろしければ「申請する」をタップしてください。</div>
+    </div>
+    <div class="divider"></div>
+    <div id="confirm-body"></div>
+    <div class="divider"></div>
+    <button class="btn-primary" onclick="doSubmit()">申請する</button>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goBack()">← 修正する</button>
+    </div>
+  </div>
+
+  <!-- ③ 送信中 -->
+  <div id="screen-sending" class="screen">
+    <div class="spinner"></div>
+    <div style="font-family:'Shippori Mincho',serif;font-size:18px;letter-spacing:.2em;margin-bottom:8px;">送信中...</div>
+    <div style="font-size:13px;color:var(--text-muted);">しばらくお待ちください</div>
+  </div>
+
+  <!-- ④ 完了 -->
+  <div id="screen-done" class="screen">
+    <div class="checkmark-wrap">
+      <svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"/></svg>
+    </div>
+    <div style="font-family:'Shippori Mincho',serif;font-size:21px;letter-spacing:.2em;margin-bottom:18px;">入会申請が完了しました</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:2;letter-spacing:.08em;max-width:340px;margin:0 auto;">
+      ご登録のメールアドレスに<br>グループLINEへの案内を送信しました。<br><br>
+      メールが届かない場合は<br>迷惑メールフォルダをご確認ください。
+    </div>
+    <div class="divider"></div>
+    <button class="btn-primary" onclick="resetForm()" style="max-width:280px;margin:0 auto;display:block;">別の方の申請をする</button>
+  </div>
+
+  <!-- ⑤ エラー -->
+  <div id="screen-error" class="screen">
+    <div class="error-icon">✕</div>
+    <div style="font-family:'Shippori Mincho',serif;font-size:19px;letter-spacing:.2em;margin-bottom:14px;">送信に失敗しました</div>
+    <div class="error-msg" id="error-detail"></div>
+    <button class="btn-primary" onclick="showScreen('confirm')" style="max-width:240px;margin:0 auto 14px;display:block;">再送信する</button>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="showScreen('form')">← フォームに戻る</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ★ GAS WebアプリのURLをここに貼る
+const GAS_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+
+const FIELDS = [
+  { key: "name",         label: "名前",                  required: true  },
+  { key: "furigana",     label: "ふりがな",              required: true  },
+  { key: "graduYear",    label: "卒業年",                required: true  },
+  { key: "email",        label: "メールアドレス",        required: true  },
+  { key: "currentJob",   label: "現職",                  required: false },
+  { key: "job",          label: "仕事の内容",            required: false },
+  { key: "career",       label: "これまでの経歴",        required: false },
+  { key: "university",   label: "大学",                  required: false },
+  { key: "clubActivity", label: "高校時代の主な活動",    required: false },
+  { key: "univReason",   label: "大学進路を決めた経緯",  required: false },
+];
+
+function getVal(key) {
+  return (document.getElementById("f-" + key)?.value || "").trim();
+}
+
+function checkRequired() {
+  const ok = FIELDS.filter(f => f.required).every(f => getVal(f.key));
+  const btn = document.getElementById("btn-to-confirm");
+  const hint = document.getElementById("hint-required");
+  btn.disabled = !ok;
+  hint.style.display = ok ? "none" : "block";
+}
+
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + name).classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  updateProgress(name);
+}
+
+function updateProgress(name) {
+  const stepMap = { form: 1, confirm: 2, sending: 2, done: 3, error: 2 };
+  const step = stepMap[name] || 1;
+  [1,2,3].forEach(i => {
+    const dot = document.getElementById("dot-" + i);
+    dot.classList.remove("active","done");
+    if (i < step) dot.classList.add("done");
+    else if (i === step) dot.classList.add("active");
+  });
+  [1,2].forEach(i => {
+    const line = document.getElementById("line-" + i);
+    line.classList.toggle("done", i < step);
+  });
+}
+
+function goConfirm() {
+  const body = document.getElementById("confirm-body");
+  body.innerHTML = FIELDS.map(f => {
+    const val = getVal(f.key);
+    return `<div class="confirm-row">
+      <div class="confirm-label">${f.label}</div>
+      <div class="confirm-val ${val ? '' : 'empty'}">${val || "—"}</div>
+    </div>`;
+  }).join("");
+  showScreen("confirm");
+}
+
+function goBack() {
+  showScreen("form");
+}
+
+async function doSubmit() {
+  showScreen("sending");
+  const data = {};
+  FIELDS.forEach(f => { data[f.key] = getVal(f.key); });
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      mode: "no-cors",
+    });
+    // no-cors では response が opaque のため status 判定不可 → 送信できたとみなす
+    showScreen("done");
+  } catch(e) {
+    document.getElementById("error-detail").textContent =
+      "送信できませんでした。時間をおいて再度お試しください。\n(" + e.message + ")";
+    showScreen("error");
+  }
+}
+
+function resetForm() {
+  FIELDS.forEach(f => {
+    const el = document.getElementById("f-" + f.key);
+    if (el) el.value = "";
+  });
+  checkRequired();
+  showScreen("form");
+}
+
+// 初期化
+checkRequired();
+</script>
+</body>
+</html>
