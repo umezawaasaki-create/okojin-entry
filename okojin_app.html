@@ -345,15 +345,15 @@
 
     <div class="field">
       <div class="field-label">名前 <span class="req">必須</span></div>
-      <input type="text" id="f-name" placeholder="例：大宮 太郎" oninput="checkRequired()">
+      <input type="text" id="f-name" placeholder="例：梅澤 朝樹" oninput="checkRequired()">
     </div>
     <div class="field">
       <div class="field-label">ふりがな <span class="req">必須</span></div>
-      <input type="text" id="f-furigana" placeholder="例：おおみや たろう" oninput="checkRequired()">
+      <input type="text" id="f-furigana" placeholder="例：うめざわ あさき" oninput="checkRequired()">
     </div>
     <div class="field">
       <div class="field-label">卒業年 <span class="req">必須</span></div>
-      <input type="text" id="f-graduYear" placeholder="例：2005（西暦）" oninput="checkRequired()">
+      <input type="text" id="f-graduYear" placeholder="例：2000（西暦）" oninput="checkRequired()">
     </div>
     <div class="field">
       <div class="field-label">メールアドレス <span class="req">必須</span></div>
@@ -361,33 +361,33 @@
     </div>
     <div class="divider"></div>
     <div class="field">
-      <div class="field-label">現職 <span class="opt">任意</span></div>
-      <input type="text" id="f-currentJob" placeholder="例：株式会社〇〇　営業部長">
+      <div class="field-label">現職 <span class="req">必須</span></div>
+      <input type="text" id="f-currentJob" placeholder="例：株式会社インダストリー・ワン" oninput="checkRequired()">
     </div>
     <div class="field">
-      <div class="field-label">仕事の内容 <span class="opt">任意</span></div>
-      <textarea id="f-job" rows="3" placeholder="現在の仕事内容を簡単に教えてください"></textarea>
+      <div class="field-label">仕事の内容 <span class="req">必須</span></div>
+      <textarea id="f-job" rows="3" placeholder="例：DXにおけるデザインコンサルタント" oninput="checkRequired()"></textarea>
     </div>
     <div class="field">
-      <div class="field-label">これまでの経歴 <span class="opt">任意</span></div>
-      <textarea id="f-career" rows="3" placeholder="これまでのキャリアを記入してください"></textarea>
+      <div class="field-label">これまでの経歴 <span class="req">必須</span></div>
+      <textarea id="f-career" rows="4" placeholder="例：・株式会社デンソー(2021-2023)&#10;・日産自動車株式会社(2018-2021)&#10;・ヤフー株式会社(2016-2018)&#10;・株式会社リコー(2004-2016)" oninput="checkRequired()"></textarea>
     </div>
     <div class="field">
-      <div class="field-label">大学 <span class="opt">任意</span></div>
-      <input type="text" id="f-university" placeholder="例：早稲田大学　政治経済学部">
+      <div class="field-label">大学 <span class="req">必須</span></div>
+      <input type="text" id="f-university" placeholder="例：武蔵野美術大学 造形学部 デザイン情報学科" oninput="checkRequired()">
     </div>
     <div class="field">
-      <div class="field-label">高校時代の主な活動 <span class="opt">任意</span></div>
-      <input type="text" id="f-clubActivity" placeholder="例：野球部、文化祭実行委員">
+      <div class="field-label">高校時代の主な活動 <span class="req">必須</span></div>
+      <input type="text" id="f-clubActivity" placeholder="例：野球部（主将→副主将）、文化祭のメインキャラクターデザイン" oninput="checkRequired()">
     </div>
     <div class="field">
-      <div class="field-label">大学進路を決めた経緯 <span class="opt">任意</span></div>
-      <textarea id="f-univReason" rows="4" placeholder="大学・学部を選んだ理由を教えてください"></textarea>
+      <div class="field-label">大学進路を決めた経緯 <span class="req">必須</span></div>
+      <textarea id="f-univReason" rows="5" placeholder="例：高校時代は野球部一色でほとんど勉強は手付かずであったが、部活動を通じ努力は必ず報われることを学ぶ。高校２年まで天文学や農業に興味があったが、３年クラス変え時に急遽得意分野である「美術」の道を志すことを決める。" oninput="checkRequired()"></textarea>
     </div>
 
     <div class="divider"></div>
     <button class="btn-primary" id="btn-to-confirm" onclick="goConfirm()" disabled>内容を確認する →</button>
-    <div class="hint" id="hint-required">※ 必須項目（名前・ふりがな・卒業年・メールアドレス）をすべて入力してください</div>
+    <div class="hint" id="hint-required">※ すべての項目を入力してください</div>
   </div>
 
   <!-- ③ 確認画面 -->
@@ -444,16 +444,16 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzIQpnD83VoWbJP9s2MtPeFdytBVSRxRbdgLOttqEHhM1gcmUFP3WVbFu1nHwEheZwgxg/exec";
 
 const FIELDS = [
-  { key: "name",         label: "名前",                  required: true  },
-  { key: "furigana",     label: "ふりがな",              required: true  },
-  { key: "graduYear",    label: "卒業年",                required: true  },
-  { key: "email",        label: "メールアドレス",        required: true  },
-  { key: "currentJob",   label: "現職",                  required: false },
-  { key: "job",          label: "仕事の内容",            required: false },
-  { key: "career",       label: "これまでの経歴",        required: false },
-  { key: "university",   label: "大学",                  required: false },
-  { key: "clubActivity", label: "高校時代の主な活動",    required: false },
-  { key: "univReason",   label: "大学進路を決めた経緯",  required: false },
+  { key: "name",         label: "名前",                  required: true },
+  { key: "furigana",     label: "ふりがな",              required: true },
+  { key: "graduYear",    label: "卒業年",                required: true },
+  { key: "email",        label: "メールアドレス",        required: true },
+  { key: "currentJob",   label: "現職",                  required: true },
+  { key: "job",          label: "仕事の内容",            required: true },
+  { key: "career",       label: "これまでの経歴",        required: true },
+  { key: "university",   label: "大学",                  required: true },
+  { key: "clubActivity", label: "高校時代の主な活動",    required: true },
+  { key: "univReason",   label: "大学進路を決めた経緯",  required: true },
 ];
 
 function getVal(key) {
