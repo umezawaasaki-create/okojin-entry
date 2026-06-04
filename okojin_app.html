@@ -208,6 +208,43 @@
   #screen-error { text-align: center; padding: 60px 0; }
   .error-icon { font-size: 40px; color: var(--red); margin-bottom: 20px; }
   .error-msg { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+
+  /* ── Agreement screen ── */
+  .agreement-box {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 24px;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 28px;
+    line-height: 1.9;
+    font-size: 13px;
+    color: var(--text-muted);
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-dim) transparent;
+  }
+  .agreement-box::-webkit-scrollbar { width: 4px; }
+  .agreement-box::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+  .agreement-section { margin-bottom: 20px; }
+  .agreement-section:last-child { margin-bottom: 0; }
+  .agreement-heading {
+    font-size: 12px; letter-spacing: .12em; color: var(--gold);
+    margin-bottom: 8px; font-weight: 500;
+  }
+  .agreement-intro {
+    background: var(--gold-faint);
+    border-left: 2px solid var(--gold);
+    padding: 14px 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.9;
+  }
+  .rep-line {
+    font-size: 12px; color: var(--text-muted); margin-top: 8px; letter-spacing: .05em;
+  }
 </style>
 </head>
 <body>
@@ -224,16 +261,21 @@
   <div class="progress-steps">
     <div class="step-dot active" id="dot-1">
       <div class="step-circle">1</div>
-      <div class="step-label">入力</div>
+      <div class="step-label">規約</div>
     </div>
     <div class="step-line" id="line-1"></div>
     <div class="step-dot" id="dot-2">
       <div class="step-circle">2</div>
-      <div class="step-label">確認</div>
+      <div class="step-label">入力</div>
     </div>
     <div class="step-line" id="line-2"></div>
     <div class="step-dot" id="dot-3">
       <div class="step-circle">3</div>
+      <div class="step-label">確認</div>
+    </div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step-dot" id="dot-4">
+      <div class="step-circle">4</div>
       <div class="step-label">完了</div>
     </div>
   </div>
@@ -241,8 +283,60 @@
 
 <main>
 
-  <!-- ① 入力フォーム -->
-  <div id="screen-form" class="screen active">
+  <!-- ① 規約同意画面 -->
+  <div id="screen-agree" class="screen active">
+    <div class="screen-head">
+      <div class="screen-title">大高人 入会のご案内</div>
+    </div>
+
+    <div class="agreement-intro">
+      下記にご賛同いただける方に加入いただいています。加入希望者は下記をご記入ください。いただいた情報は大高人の活動にあたってのみ参照させていただきます。
+      <div class="rep-line">大高人代表：梅澤朝樹（2000年卒）</div>
+    </div>
+
+    <div class="agreement-box">
+      <div class="agreement-section">
+        <div class="agreement-heading">◎ 大高人とは</div>
+        「大人になった大高生」を意味する。下記目的に賛同し、大宮高校における大高生のための活動に協力する個人と、大高人として活動する集団 両方を指す。
+      </div>
+
+      <div class="agreement-section">
+        <div class="agreement-heading">◎ 活動目的</div>
+        高校の授業だけでは体験することのできない知見を、社会人になった大高生である大高人が提供することで、大高生の学びを支援する。
+      </div>
+
+      <div class="agreement-section">
+        <div class="agreement-heading">◎ 参加要件</div>
+        以下２点を満たしていることを参加要件とします。<br><br>
+        １）大宮高校を卒業しているもので、下記のいずれかに該当する。<br>
+        　① 会社員、経営者、個人事業主など社会人として活動している<br>
+        　② 学生の場合、学士課程を修了している<br>
+        　③ その他経歴の者で、大宮高校と大高人幹事の承認を受けている<br><br>
+        ２）活動目的に賛同し、教育活動の一環であることを理解して見返りなく協力できる。
+      </div>
+
+      <div class="agreement-section">
+        <div class="agreement-heading">◎ 活動</div>
+        １）（大宮高校の依頼または承認に基づき）大高生の進路支援への協力、体験談の提供（大高人通信、ワークショップなど）<br>
+        ２）大高人同士の情報交換・交流<br>
+        ３）運営に関する活動（希望者）
+      </div>
+
+      <div class="agreement-section">
+        <div class="agreement-heading">◎ 禁止事項</div>
+        ・不当なビジネス勧誘（各種法令に反するもの）<br>
+        ・誹謗中傷、犯罪行為、迷惑行為<br>
+        ・大宮高校及び大高人幹事に無断で大高人として活動する行為<br>
+        ・大宮高校の許可なく生徒と個別に連絡を取ろうとする行為<br>
+        ・その他、目的達成や活動の妨げとなる行為
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="showScreen('form')">上記に賛同する →</button>
+  </div>
+
+  <!-- ② 入力フォーム -->
+  <div id="screen-form" class="screen">
     <div class="screen-head">
       <div class="screen-title">入会申請フォーム</div>
       <div class="screen-desc">埼玉県立大宮高校の卒業生コミュニティへようこそ。<br>以下の項目をご入力ください。</div>
@@ -296,7 +390,7 @@
     <div class="hint" id="hint-required">※ 必須項目（名前・ふりがな・卒業年・メールアドレス）をすべて入力してください</div>
   </div>
 
-  <!-- ② 確認画面 -->
+  <!-- ③ 確認画面 -->
   <div id="screen-confirm" class="screen">
     <div class="screen-head">
       <div class="screen-title">入力内容の確認</div>
@@ -311,14 +405,14 @@
     </div>
   </div>
 
-  <!-- ③ 送信中 -->
+  <!-- ④ 送信中 -->
   <div id="screen-sending" class="screen">
     <div class="spinner"></div>
     <div style="font-family:'Shippori Mincho',serif;font-size:18px;letter-spacing:.2em;margin-bottom:8px;">送信中...</div>
     <div style="font-size:13px;color:var(--text-muted);">しばらくお待ちください</div>
   </div>
 
-  <!-- ④ 完了 -->
+  <!-- ⑤ 完了 -->
   <div id="screen-done" class="screen">
     <div class="checkmark-wrap">
       <svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"/></svg>
@@ -332,7 +426,7 @@
     <button class="btn-primary" onclick="resetForm()" style="max-width:280px;margin:0 auto;display:block;">別の方の申請をする</button>
   </div>
 
-  <!-- ⑤ エラー -->
+  <!-- ⑥ エラー -->
   <div id="screen-error" class="screen">
     <div class="error-icon">✕</div>
     <div style="font-family:'Shippori Mincho',serif;font-size:19px;letter-spacing:.2em;margin-bottom:14px;">送信に失敗しました</div>
@@ -382,16 +476,18 @@ function showScreen(name) {
 }
 
 function updateProgress(name) {
-  const stepMap = { form: 1, confirm: 2, sending: 2, done: 3, error: 2 };
+  const stepMap = { agree: 1, form: 2, confirm: 3, sending: 3, done: 4, error: 3 };
   const step = stepMap[name] || 1;
-  [1,2,3].forEach(i => {
+  [1,2,3,4].forEach(i => {
     const dot = document.getElementById("dot-" + i);
+    if (!dot) return;
     dot.classList.remove("active","done");
     if (i < step) dot.classList.add("done");
     else if (i === step) dot.classList.add("active");
   });
-  [1,2].forEach(i => {
+  [1,2,3].forEach(i => {
     const line = document.getElementById("line-" + i);
+    if (!line) return;
     line.classList.toggle("done", i < step);
   });
 }
