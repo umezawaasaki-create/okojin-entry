@@ -21,10 +21,16 @@
  * このスクリプトは openById() で対象スプレッドシートを直接指定しているため、
  * どのGoogleアカウントでスクリプトを実行していても、そのアカウントが対象スプレッドシートに
  * 編集権限を持ってさえいれば書き込めます（このスクリプト自体が対象シートに紐づいている必要はありません）。
+ *
+ * 【申請者への自動返信】
+ * スプレッドシートへの登録後、申請者本人（フォームのメールアドレス）宛てに、
+ * 大高人グループLINEの参加案内メール（QRコード付き）を自動送信する（sendWelcomeEmail_）。
+ * QRコードは外部の無料API（api.qrserver.com）でLINE_GROUP_URLから都度生成している。
  */
 
 const SPREADSHEET_ID = '1NWLLHauvqE2zRVh31BYsORY48JoqqaTD';
 const SHEET_GID = 2013538450; // 名簿タブのgid
+const LINE_GROUP_URL = 'https://line.me/ti/g/HxtSBb8hAe'; // 大高人LINEグループ参加リンク
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -33,7 +39,11 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const sheet = getTargetSheet_();
+    console.log('対象シート取得OK: name=%s, sheetId=%s, spreadsheetId=%s',
+      sheet.getName(), sheet.getSheetId(), sheet.getParent().getId());
+
     const nextNo = getNextNo_(sheet);
+    console.log('採番結果: %s (追記前の最終行=%s)', nextNo, sheet.getLastRow());
 
     sheet.appendRow([
       nextNo,                   // A No
@@ -52,13 +62,16 @@ function doPost(e) {
       data.email || '',         // N メールアドレス
     ]);
 
+    console.log('appendRow完了: No=%s', nextNo);
     notifyAdmin_(data, nextNo);
+    sendWelcomeEmail_(data);
 
     return ContentService
       .createTextOutput(JSON.stringify({ result: 'success', no: nextNo }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
+    console.error('doPostでエラー: %s\n%s', err.message, err.stack);
     return ContentService
       .createTextOutput(JSON.stringify({ result: 'error', message: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -121,4 +134,64 @@ function notifyAdmin_(data, no) {
       `詳細は名簿スプレッドシートをご確認ください。\n` +
       `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit?gid=${SHEET_GID}`,
   });
+}
+
+/**
+ * 申請者本人へ、大高人グループLINEの参加案内（QRコード付き）をメール送信する。
+ * QRコードは外部API（api.qrserver.com）でLINE_GROUP_URLから都度生成している。
+ * QR生成やメール送信に失敗しても doPost 全体は失敗させず、ログにのみ記録する
+ * （スプレッドシートへの登録自体は既に完了しているため）。
+ */
+function sendWelcomeEmail_(data) {
+  if (!data.email) return;
+
+  try {
+    let qrBlob = null;
+    try {
+      const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='
+        + encodeURIComponent(LINE_GROUP_URL);
+      qrBlob = UrlFetchApp.fetch(qrApiUrl).getBlob().setName('line_qr.png');
+    } catch (qrErr) {
+      console.error('QRコード生成に失敗（リンクのみで案内を送信します）: %s', qrErr.message);
+    }
+
+    const htmlBody = `
+      <div style="font-family: sans-serif; line-height:1.8; color:#222;">
+        <p>${data.name || ''} 様</p>
+        <p>大高人への入会申請ありがとうございます。<br>
+        下記より大高人グループLINEにご参加ください。</p>
+        ${qrBlob ? '<p><img src="cid:lineQr" width="240" height="240" alt="LINEグループ参加用QRコード"></p>' : ''}
+        <p>
+          <a href="${LINE_GROUP_URL}"
+             style="display:inline-block;padding:12px 24px;background:#06C755;color:#ffffff;
+                    text-decoration:none;border-radius:6px;font-weight:bold;">
+            LINEグループに参加する
+          </a>
+        </p>
+        <p style="font-size:12px;color:#666;">
+          ボタンが機能しない場合は、以下のURLをブラウザで開くか、QRコードを別の端末で読み取ってください。<br>
+          ${LINE_GROUP_URL}
+        </p>
+      </div>
+    `;
+
+    const options = {
+      htmlBody: htmlBody,
+      name: '大高人',
+    };
+    if (qrBlob) {
+      options.inlineImages = { lineQr: qrBlob };
+    }
+
+    MailApp.sendEmail({
+      to: data.email,
+      subject: '【大高人】グループLINEへのご案内',
+      body: 'LINEグループへの参加はこちらから: ' + LINE_GROUP_URL, // htmlBody非対応クライアント向けの代替テキスト
+      ...options,
+    });
+
+    console.log('参加者へのLINE案内メールを送信しました: %s', data.email);
+  } catch (err) {
+    console.error('参加者へのLINE案内メール送信に失敗: %s', err.message);
+  }
 }

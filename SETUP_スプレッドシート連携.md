@@ -35,6 +35,16 @@ https://docs.google.com/spreadsheets/d/1NWLLHauvqE2zRVh31BYsORY48JoqqaTD/edit?gi
    ```
    を書き換える
 
+## 申請者本人へのLINEグループ案内メールについて
+
+- スプレッドシートへの登録が終わったあと、申請者本人（フォームに入力されたメールアドレス）宛てに、
+  大高人グループLINEへの参加案内メールを自動送信します
+- メールにはQRコード画像と参加ボタン（リンク）の両方を記載しています
+- LINEグループのURLは `Code.gs` 内の `const LINE_GROUP_URL = 'https://line.me/ti/g/HxtSBb8hAe';` です。
+  グループURLが変わった場合はここを書き換えてください
+- QRコードは外部の無料API（api.qrserver.com）を使ってメール送信のたびに生成しています。
+  この外部サービスが利用できない場合でも、QR画像なしでリンクのみのメールとして送信されます
+
 ## 通知先メールアドレスについて（任意）
 
 - `Code.gs` 内の `const ADMIN_EMAIL = 'okojin.unei@gmail.com';`
