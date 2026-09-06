@@ -21,11 +21,11 @@
  *
  * 今回追加した承認フローを使うには、保存後に以下も一度だけ行ってください：
  *   1. 関数選択のプルダウンで setupLineApprovalColumns を選び、▶実行（見出しの追加・チェックボックス化）
- *   2. 左サイドバー「トリガー」→「トリガーを追加」
- *        実行する関数: onLineApprovalEdit
- *        イベントのソース: スプレッドシートから
- *        イベントの種類: 編集時
- *      で保存（初回のみ権限の承認が必要）
+ *   2. 関数選択のプルダウンで installLineApprovalTrigger を選び、▶実行
+ *      （「トリガー」画面から手動で追加すると、対象スプレッドシートの選択を誤りやすいため、
+ *       このコードでSPREADSHEET_IDを名指しして確実に紐づける。既存の同名トリガーがあれば
+ *       自動的に削除してから登録し直すので、重複登録の心配もない）
+ *      初回は権限の承認画面が出るので許可する
  *
  * このスクリプトは openById() で対象スプレッドシートを直接指定しているため、
  * どのGoogleアカウントでスクリプトを実行していても、そのアカウントが対象スプレッドシートに
@@ -175,6 +175,36 @@ function setupLineApprovalColumns() {
   sheet.getRange(2, COL_LINE_APPROVE, lastRow - 1, 1).insertCheckboxes();
 
   console.log('LINE案内列のセットアップが完了しました');
+}
+
+/**
+ * onLineApprovalEdit の「編集時」トリガーを、SPREADSHEET_ID で指定した
+ * 対象スプレッドシートに名指しで登録し直す。
+ *
+ * 「トリガー」画面から手動で「スプレッドシートから」を選ぶと、対象スプレッドシートの
+ * 選択を誤りやすい（別のスプレッドシートに紐づいてしまい、チェックを入れても何も
+ * 起きないという状態になる）。この関数はコード上で対象を明示するため、その心配がない。
+ *
+ * 既存の同名トリガーがあれば重複登録を避けるため一度削除してから登録し直す。
+ * （Apps Scriptエディタの関数選択プルダウンから選んで▶実行する。初回は権限の承認が必要）
+ */
+function installLineApprovalTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let removed = 0;
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'onLineApprovalEdit') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+
+  ScriptApp.newTrigger('onLineApprovalEdit')
+    .forSpreadsheet(SPREADSHEET_ID)
+    .onEdit()
+    .create();
+
+  console.log('onLineApprovalEditのトリガーを登録しました（削除した旧トリガー: %s件, 対象: %s）',
+    removed, SPREADSHEET_ID);
 }
 
 function getTargetSheet_() {
