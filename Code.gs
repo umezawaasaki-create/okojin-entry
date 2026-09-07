@@ -1,586 +1,326 @@
-// APIキーはスクリプトプロパティに保存してください。
-// GASエディタ → プロジェクトの設定 → スクリプトプロパティ
-//   キー: CLAUDE_API_KEY  値: sk-ant-api03-...（実際のキー）
+/**
+ * 大高人 入会申請フォーム → 既存の名簿スプレッドシートへの自動追記スクリプト
+ *
+ * 対象スプレッドシート:
+ *   https://docs.google.com/spreadsheets/d/1NWLLHauvqE2zRVh31BYsORY48JoqqaTD/edit?gid=2013538450
+ *
+ * 列構成（既存の名簿シートに合わせています。O・Pは今回追加した列）:
+ *   A:No  B:役割  C:大高人チャット  D:大高人通信  E:名前  F:ふりがな  G:卒業年
+ *   H:仕事の内容  I:現職  J:これまでの経歴  K:大学  L:高校時代の主な活動  M:大学進路を決めた経緯  N:メールアドレス
+ *   O:LINE案内（チェックボックス）  P:LINE案内送信日時
+ *
+ * 「役割」「大高人チャット」「大高人通信」は手動管理の列のため、自動入力はせず空欄のまま追記します。
+ * 「No」は既存データの最大値+1を自動採番します（3桁ゼロ埋め）。
+ *
+ * 【セットアップ手順】
+ * すでに動作確認済みのApps Scriptプロジェクトがあれば、そのプロジェクトのコードを
+ * このファイルの内容にまるごと置き換えて保存し、「デプロイ」→「デプロイを管理」→
+ * 既存デプロイの編集（鉛筆アイコン）→ バージョン「新バージョン」を選んで「デプロイ」すれば、
+ * ウェブアプリのURLは変えずにこの新しい書き込み先に切り替わります。
+ * （okojin_app.html 側のGAS_URLは変更不要です）
+ *
+ * 今回追加した承認フローを使うには、保存後に以下も一度だけ行ってください：
+ *   1. 関数選択のプルダウンで setupLineApprovalColumns を選び、▶実行（見出しの追加・チェックボックス化）
+ *   2. 関数選択のプルダウンで installLineApprovalTrigger を選び、▶実行
+ *      （「トリガー」画面から手動で追加すると、対象スプレッドシートの選択を誤りやすいため、
+ *       このコードでSPREADSHEET_IDを名指しして確実に紐づける。既存の同名トリガーがあれば
+ *       自動的に削除してから登録し直すので、重複登録の心配もない）
+ *      初回は権限の承認画面が出るので許可する
+ *
+ * このスクリプトは openById() で対象スプレッドシートを直接指定しているため、
+ * どのGoogleアカウントでスクリプトを実行していても、そのアカウントが対象スプレッドシートに
+ * 編集権限を持ってさえいれば書き込めます（このスクリプト自体が対象シートに紐づいている必要はありません）。
+ *
+ * 【申請者へのLINE案内メール（承認制）】
+ * フォーム送信時点ではLINE案内メールは送らず、スプレッドシートに登録するだけにする。
+ * 幹事がO列「LINE案内」のチェックボックスにチェックを入れると、onLineApprovalEditが発火し、
+ * その場で申請者本人へQRコード付きの参加案内メールを送信し、P列に送信日時を記録する。
+ */
 
-const KEYS         = ['cls','num','name','ai1','ai2','ai3','future','idea','dt','job','kizuki','hansei','nack5','kizuki1','stadium','presentationUrl'];
-const HEADER       = ['クラス','番号','氏名','AI場面①','AI場面②','AI場面③','AIが進化したら','アイデア','提出日時','将来の夢・職業','気づき（事前課題終了時点）','AIと話してみて','NACK5ビジネスアイデア','気づき（第１回授業後）','スタジアム実験プラン（個人）','プレゼン資料'];
-const GROUP_KEYS   = ['gname','idea','reason','nack5','dt'];
-const GROUP_HEADER = ['グループ名','選んだアイデア','選んだ理由','NACK5見学で確かめたいこと','提出日時'];
+const SPREADSHEET_ID = '1NWLLHauvqE2zRVh31BYsORY48JoqqaTD';
+const SHEET_GID = 2013538450; // 名簿タブのgid
+const LINE_GROUP_URL = 'https://line.me/ti/g/HxtSBb8hAe'; // 大高人LINEグループ参加リンク
 
-const CONTACT_SHEET  = '問い合わせ';
-const CONTACT_HEADER = ['クラス', '番号', '氏名', 'メールアドレス', '問い合わせ内容', '提出日時'];
-const CONTACT_NOTIFY_TO = 'asaki@umeasaki.com';
-
-const SCHEDULE_SHEET = '梅澤先生との日程調整';
-const SCHEDULE_SLOTS = [
-  { datetime: '8/19 18:00-19:00', meet: 'https://meet.google.com/cvh-rbcq-tbq' },
-  { datetime: '8/20 18:00-19:00', meet: 'https://meet.google.com/ozg-nfie-qad' },
-  { datetime: '8/22 14:00-15:00', meet: 'https://meet.google.com/oiu-nysc-exv' },
-  { datetime: '8/23 14:00-15:00', meet: 'https://meet.google.com/mji-yyvg-xfh' },
-  { datetime: '8/24 18:00-19:00', meet: 'https://meet.google.com/ajd-sjio-csz' },
-  { datetime: '8/25 18:00-19:00', meet: 'https://meet.google.com/iaq-jiom-njz' },
-  { datetime: '8/26 18:00-19:00', meet: 'https://meet.google.com/agd-ndwh-xfd' },
-  { datetime: '8/28 18:00-19:00', meet: 'https://meet.google.com/nzt-kgzr-ssq' },
-  { datetime: '8/30 11:00-12:00', meet: 'https://meet.google.com/ssz-gyqj-ffo' },
-  { datetime: '8/30 14:00-15:00', meet: 'https://meet.google.com/buz-sxuc-hwe' },
-  { datetime: '8/30 15:00-16:00', meet: 'https://meet.google.com/meo-tawq-opa' },
-  { datetime: '8/31 18:00-19:00', meet: 'https://meet.google.com/bky-vdwh-ncy' }
-];
-
-const PRESENTATION_SHEET  = '最終プレゼン';
-const PRESENTATION_HEADER = ['クラス', '番号', '氏名', 'ファイル名', 'ファイルURL', 'ファイルID', '提出日時'];
-const PRESENTATION_FOLDER_NAME = '大高人WS2026_最終プレゼン提出';
-
-function ensurePresentationFolder() {
-  const folders = DriveApp.getFoldersByName(PRESENTATION_FOLDER_NAME);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(PRESENTATION_FOLDER_NAME);
-}
-
-function ensurePresentationSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(PRESENTATION_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(PRESENTATION_SHEET);
-    sheet.appendRow(PRESENTATION_HEADER);
-  }
-  return sheet;
-}
-
-function ensureScheduleSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SCHEDULE_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(SCHEDULE_SHEET);
-    sheet.appendRow(['日時', 'Meetリンク', '予約グループ', '更新日時']);
-    SCHEDULE_SLOTS.forEach(function (s) { sheet.appendRow([s.datetime, s.meet, '', '']); });
-  }
-  return sheet;
-}
+// 列番号（1始まり）
+const COL_EMAIL = 14;        // N列
+const COL_LINE_APPROVE = 15; // O列（チェックボックス）
+const COL_LINE_SENT_AT = 16; // P列（送信日時）
 
 function doPost(e) {
-  const p = e.parameter;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
 
-  // 梅澤先生への問い合わせ
-  if (p.action === 'contact') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(CONTACT_SHEET);
-    if (!sheet) {
-      sheet = ss.insertSheet(CONTACT_SHEET);
-      sheet.appendRow(CONTACT_HEADER);
-    }
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = getTargetSheet_();
+    console.log('対象シート取得OK: name=%s, sheetId=%s, spreadsheetId=%s',
+      sheet.getName(), sheet.getSheetId(), sheet.getParent().getId());
+
+    const nextNo = getNextNo_(sheet);
+    console.log('採番結果: %s (追記前の最終行=%s)', nextNo, sheet.getLastRow());
+
     sheet.appendRow([
-      p.cls || '',
-      p.num || '',
-      p.name || '',
-      p.email || '',
-      p.message || '',
-      new Date().toLocaleString('ja-JP')
+      nextNo,                   // A No
+      '',                       // B 役割（手動）
+      '',                       // C 大高人チャット（手動）
+      '',                       // D 大高人通信（手動）
+      data.name || '',          // E 名前
+      data.furigana || '',      // F ふりがな
+      data.graduYear || '',     // G 卒業年
+      data.job || '',           // H 仕事の内容
+      data.currentJob || '',    // I 現職
+      data.career || '',        // J これまでの経歴
+      data.university || '',    // K 大学
+      data.clubActivity || '',  // L 高校時代の主な活動
+      data.univReason || '',    // M 大学進路を決めた経緯
+      data.email || '',         // N メールアドレス
+      false,                    // O LINE案内（未承認）
+      '',                       // P LINE案内送信日時（未送信）
     ]);
+
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow, COL_LINE_APPROVE).insertCheckboxes();
+
+    console.log('appendRow完了: No=%s (行%s)', nextNo, lastRow);
+    notifyAdmin_(data, nextNo);
+    // LINE案内メールはここでは送らない。幹事がO列を承認チェックした時点で送信される（onLineApprovalEdit）。
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ result: 'success', no: nextNo }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    console.error('doPostでエラー: %s\n%s', err.message, err.stack);
+    return ContentService
+      .createTextOutput(JSON.stringify({ result: 'error', message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * スプレッドシートの「編集時」に発火するインストーラブルトリガー用関数。
+ * O列（LINE案内）のチェックボックスがONにされたら、その行の申請者へ
+ * LINEグループ案内メールを送信し、P列に送信日時を記録する。
+ *
+ * 事前に「トリガー」画面で、この関数をイベントの種類「編集時」として
+ * 手動で登録しておく必要がある（このコードを保存しただけでは動かない）。
+ */
+function onLineApprovalEdit(e) {
+  if (!e || !e.range) return;
+
+  const range = e.range;
+  const sheet = range.getSheet();
+
+  // 対象シート以外・O列以外の編集は無視
+  if (sheet.getSheetId() !== SHEET_GID) return;
+  if (range.getColumn() !== COL_LINE_APPROVE) return;
+
+  const row = range.getRow();
+  if (row === 1) return; // 見出し行は無視
+
+  const checked = range.getValue() === true;
+  if (!checked) return; // チェックを外した時は何もしない
+
+  // すでに送信済みなら二重送信しない
+  const sentAtCell = sheet.getRange(row, COL_LINE_SENT_AT);
+  if (sentAtCell.getValue()) {
+    console.log('行%sはすでに送信済みのためスキップ', row);
+    return;
+  }
+
+  const data = getRowData_(sheet, row);
+  if (!data.email) {
+    sentAtCell.setValue('送信失敗（メールアドレス未入力）');
+    return;
+  }
+
+  const success = sendWelcomeEmail_(data);
+  sentAtCell.setValue(success ? new Date() : '送信失敗（実行数ログを確認してください）');
+}
+
+/**
+ * 名簿シートの指定行から、フォームの項目名に対応するデータを読み取る。
+ */
+function getRowData_(sheet, row) {
+  const values = sheet.getRange(row, 1, 1, COL_EMAIL).getValues()[0];
+  return {
+    no: values[0],
+    name: values[4],
+    furigana: values[5],
+    graduYear: values[6],
+    job: values[7],
+    currentJob: values[8],
+    career: values[9],
+    university: values[10],
+    clubActivity: values[11],
+    univReason: values[12],
+    email: values[13],
+  };
+}
+
+/**
+ * 一度だけ手動実行するセットアップ関数。
+ * O列・P列に見出しを設定し、O列の既存行をチェックボックス形式にする。
+ * （Apps Scriptエディタの関数選択プルダウンから選んで▶実行する）
+ */
+function setupLineApprovalColumns() {
+  const sheet = getTargetSheet_();
+
+  sheet.getRange(1, COL_LINE_APPROVE).setValue('LINE案内');
+  sheet.getRange(1, COL_LINE_SENT_AT).setValue('LINE案内送信日時');
+
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+  sheet.getRange(2, COL_LINE_APPROVE, lastRow - 1, 1).insertCheckboxes();
+
+  console.log('LINE案内列のセットアップが完了しました');
+}
+
+/**
+ * onLineApprovalEdit の「編集時」トリガーを、SPREADSHEET_ID で指定した
+ * 対象スプレッドシートに名指しで登録し直す。
+ *
+ * 「トリガー」画面から手動で「スプレッドシートから」を選ぶと、対象スプレッドシートの
+ * 選択を誤りやすい（別のスプレッドシートに紐づいてしまい、チェックを入れても何も
+ * 起きないという状態になる）。この関数はコード上で対象を明示するため、その心配がない。
+ *
+ * 既存の同名トリガーがあれば重複登録を避けるため一度削除してから登録し直す。
+ * （Apps Scriptエディタの関数選択プルダウンから選んで▶実行する。初回は権限の承認が必要）
+ */
+function installLineApprovalTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let removed = 0;
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'onLineApprovalEdit') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+
+  ScriptApp.newTrigger('onLineApprovalEdit')
+    .forSpreadsheet(SPREADSHEET_ID)
+    .onEdit()
+    .create();
+
+  console.log('onLineApprovalEditのトリガーを登録しました（削除した旧トリガー: %s件, 対象: %s）',
+    removed, SPREADSHEET_ID);
+}
+
+function getTargetSheet_() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheets().find(s => s.getSheetId() === SHEET_GID);
+  if (!sheet) {
+    throw new Error('対象シート（gid=' + SHEET_GID + ')が見つかりません。SHEET_GIDの値を確認してください。');
+  }
+  return sheet;
+}
+
+/**
+ * 既存の「No」列（A列）の最大値+1を、3桁ゼロ埋め文字列（例: "160"）で返す。
+ * データが無い場合は "001" から開始する。
+ */
+function getNextNo_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '001';
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+  let max = 0;
+  values.forEach(v => {
+    const n = parseInt(v, 10);
+    if (!isNaN(n) && n > max) max = n;
+  });
+
+  const next = max + 1;
+  return ('000' + next).slice(-3);
+}
+
+/**
+ * 新規申請があったことを幹事にメール通知する。
+ * 件名は既存の運用形式「【大高人】新規入会申請 No.xxx 〇〇 さん」に合わせている。
+ * 通知が不要であれば doPost 内の notifyAdmin_(data, nextNo); の行を削除してよい。
+ */
+const ADMIN_EMAIL = 'okojin.unei@gmail.com';
+
+function notifyAdmin_(data, no) {
+  if (!ADMIN_EMAIL) return;
+
+  const surname = (data.name || '').split(/[\s　]+/)[0] || data.name || '';
+
+  MailApp.sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `【大高人】新規入会申請 No.${no} ${surname} さん`,
+    body:
+      `新しい入会申請が届きました。\n\n` +
+      `No：${no}\n` +
+      `名前：${data.name || ''}\n` +
+      `ふりがな：${data.furigana || ''}\n` +
+      `卒業年：${data.graduYear || ''}\n` +
+      `メールアドレス：${data.email || ''}\n` +
+      `現職：${data.currentJob || ''}\n\n` +
+      `内容を確認し、LINEグループに案内してよければ名簿シートのO列「LINE案内」に\n` +
+      `チェックを入れてください。その場で本人へ参加案内メールが送信されます。\n\n` +
+      `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit?gid=${SHEET_GID}`,
+  });
+}
+
+/**
+ * 申請者本人へ、大高人グループLINEの参加案内（QRコード付き）をメール送信する。
+ * QRコードは外部API（api.qrserver.com）でLINE_GROUP_URLから都度生成している。
+ * 呼び出し元（onLineApprovalEdit）が送信日時を記録できるよう、成否をboolean で返す。
+ */
+function sendWelcomeEmail_(data) {
+  if (!data.email) return false;
+
+  try {
+    let qrBlob = null;
     try {
-      MailApp.sendEmail({
-        to: CONTACT_NOTIFY_TO,
-        subject: '【大高人WS】新しい問い合わせがあります（' + (p.name || '') + 'さん）',
-        body:
-          'クラス: ' + (p.cls || '') + '\n' +
-          '番号: ' + (p.num || '') + '\n' +
-          '氏名: ' + (p.name || '') + '\n' +
-          'メールアドレス: ' + (p.email || '') + '\n\n' +
-          '問い合わせ内容:\n' + (p.message || '')
-      });
-    } catch (err) {
-      // 通知メールの失敗で問い合わせ自体の保存を止めない
-      Logger.log('問い合わせ通知メールの送信に失敗しました: ' + err);
+      const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='
+        + encodeURIComponent(LINE_GROUP_URL);
+      qrBlob = UrlFetchApp.fetch(qrApiUrl).getBlob().setName('line_qr.png');
+    } catch (qrErr) {
+      console.error('QRコード生成に失敗（リンクのみで案内を送信します）: %s', qrErr.message);
     }
-    return ContentService
-      .createTextOutput(JSON.stringify({ result: 'success' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
 
-  // 最終プレゼン資料の提出
-  if (p.action === 'uploadPresentation') {
-    try {
-      const cls = p.cls || '';
-      const num = p.num || '';
-      const name = p.name || '';
-      const filename = p.filename || 'presentation.pptx';
-      const mimeType = p.mimeType || 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const htmlBody = `
+      <div style="font-family: sans-serif; line-height:1.8; color:#222;">
+        <p>${data.name || ''} 様</p>
+        <p>大高人への入会申請ありがとうございます。<br>
+        下記より大高人グループLINEにご参加ください。</p>
+        ${qrBlob ? '<p><img src="cid:lineQr" width="240" height="240" alt="LINEグループ参加用QRコード"></p>' : ''}
+        <p>
+          <a href="${LINE_GROUP_URL}"
+             style="display:inline-block;padding:12px 24px;background:#06C755;color:#ffffff;
+                    text-decoration:none;border-radius:6px;font-weight:bold;">
+            LINEグループに参加する
+          </a>
+        </p>
+        <p style="font-size:12px;color:#666;">
+          ボタンが機能しない場合は、以下のURLをブラウザで開くか、QRコードを別の端末で読み取ってください。<br>
+          ${LINE_GROUP_URL}
+        </p>
+      </div>
+    `;
 
-      if (!p.fileData) {
-        throw new Error('ファイルデータが送信されていません（fileDataが空です）');
-      }
-
-      const sheet = ensurePresentationSheet();
-      const data = sheet.getDataRange().getValues();
-      let targetRow = -1;
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][0]) === cls && String(data[i][1]) === num) { targetRow = i + 1; break; }
-      }
-
-      // 既に提出済みなら、古いファイルは破棄してから新しいファイルに差し替える
-      if (targetRow > 0) {
-        const oldFileId = data[targetRow - 1][5];
-        if (oldFileId) {
-          try { DriveApp.getFileById(oldFileId).setTrashed(true); } catch (err) {
-            Logger.log('古いファイルの削除に失敗しました: ' + err);
-          }
-        }
-      }
-
-      const bytes = Utilities.base64Decode(p.fileData);
-      const blob = Utilities.newBlob(bytes, mimeType, filename);
-      const folder = ensurePresentationFolder();
-      const file = folder.createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-      const row = [cls, num, name, filename, file.getUrl(), file.getId(), new Date().toLocaleString('ja-JP')];
-      if (targetRow > 0) {
-        sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
-      } else {
-        sheet.appendRow(row);
-      }
-
-      // 既存の「回答」シートにも、プレゼン資料を開けるリンクを1列反映する
-      try {
-        const mainSheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-        if (mainSheet.getLastRow() > 0) {
-          const lastCol = mainSheet.getLastColumn();
-          if (lastCol < HEADER.length) {
-            mainSheet.getRange(1, lastCol + 1, 1, HEADER.length - lastCol)
-                     .setValues([HEADER.slice(lastCol)]);
-          }
-          const mainData = mainSheet.getDataRange().getValues();
-          let mainRow = -1;
-          for (let i = 1; i < mainData.length; i++) {
-            if (String(mainData[i][0]) === cls && String(mainData[i][1]) === num) { mainRow = i + 1; break; }
-          }
-          if (mainRow > 0) {
-            const col = KEYS.indexOf('presentationUrl') + 1;
-            mainSheet.getRange(mainRow, col).setFormula('=HYPERLINK("' + file.getUrl() + '","開く")');
-          }
-        }
-      } catch (err) {
-        // 回答シートへの反映に失敗しても、提出自体は成功として扱う
-        Logger.log('回答シートへのプレゼン資料リンク反映に失敗しました: ' + err);
-      }
-
-      return ContentService
-        .createTextOutput(JSON.stringify({ result: 'success', url: file.getUrl() }))
-        .setMimeType(ContentService.MimeType.JSON);
-
-    } catch (err) {
-      // ここで捕まえてJSONで返すことで、アプリ画面にエラー内容を表示できるようにする
-      Logger.log('プレゼン資料のアップロードに失敗しました: ' + err);
-      return ContentService
-        .createTextOutput(JSON.stringify({ result: 'error', message: String(err) }))
-        .setMimeType(ContentService.MimeType.JSON);
+    const options = {
+      htmlBody: htmlBody,
+      name: '大高人',
+    };
+    if (qrBlob) {
+      options.inlineImages = { lineQr: qrBlob };
     }
-  }
 
-  // グループワーク送信
-  if (p.action === 'group') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName('グループワーク');
-    if (!sheet) {
-      sheet = ss.insertSheet('グループワーク');
-      sheet.appendRow(GROUP_HEADER);
-    }
-    // グループ名で既存行を検索して上書き
-    const data = sheet.getDataRange().getValues();
-    let targetRow = -1;
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(p.gname || '')) { targetRow = i + 1; break; }
-    }
-    if (targetRow > 0) {
-      GROUP_KEYS.forEach((k, i) => {
-        if (Object.prototype.hasOwnProperty.call(p, k)) {
-          sheet.getRange(targetRow, i + 1).setValue(p[k]);
-        }
-      });
-    } else {
-      sheet.appendRow(GROUP_KEYS.map(k => p[k] || ''));
-    }
-    return ContentService
-      .createTextOutput(JSON.stringify({ result: 'success' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  // 生徒フォーム送信
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(HEADER);
-  } else {
-    const lastCol = sheet.getLastColumn();
-    if (lastCol < HEADER.length) {
-      sheet.getRange(1, lastCol + 1, 1, HEADER.length - lastCol)
-           .setValues([HEADER.slice(lastCol)]);
-    }
-  }
-
-  const cls = p.cls || '';
-  const num = p.num || '';
-
-  const data = sheet.getDataRange().getValues();
-  let targetRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(cls) && String(data[i][1]) === String(num)) {
-      targetRow = i + 1; break;
-    }
-  }
-
-  if (targetRow > 0) {
-    KEYS.forEach((k, i) => {
-      if (Object.prototype.hasOwnProperty.call(p, k)) {
-        sheet.getRange(targetRow, i + 1).setValue(p[k]);
-      }
+    MailApp.sendEmail({
+      to: data.email,
+      subject: '【大高人】グループLINEへのご案内',
+      body: 'LINEグループへの参加はこちらから: ' + LINE_GROUP_URL, // htmlBody非対応クライアント向けの代替テキスト
+      ...options,
     });
-  } else {
-    const row = KEYS.map(k => p[k] || '');
-    sheet.appendRow(row);
+
+    console.log('参加者へのLINE案内メールを送信しました: %s', data.email);
+    return true;
+  } catch (err) {
+    console.error('参加者へのLINE案内メール送信に失敗: %s', err.message);
+    return false;
   }
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ result: 'success' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doGet(e) {
-  const action   = e && e.parameter && e.parameter.action;
-  const callback = e && e.parameter && e.parameter.callback;
-
-  if (action === 'group') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('グループワーク');
-    const records = [];
-    if (sheet && sheet.getLastRow() > 1) {
-      const data = sheet.getDataRange().getValues();
-      data.slice(1).forEach(row => {
-        const obj = {};
-        GROUP_KEYS.forEach((k, i) => { obj[k] = String(row[i] == null ? '' : row[i]); });
-        records.push(obj);
-      });
-    }
-    const json = JSON.stringify(records);
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + json + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (action === 'schedule') {
-    const sheet = ensureScheduleSheet();
-    const data  = sheet.getDataRange().getValues();
-    const records = data.slice(1).map(function (row) {
-      return {
-        datetime: String(row[0] == null ? '' : row[0]),
-        meet:     String(row[1] == null ? '' : row[1]),
-        group:    String(row[2] == null ? '' : row[2])
-      };
-    });
-    const json = JSON.stringify(records);
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + json + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (action === 'scheduleBook' || action === 'scheduleCancel') {
-    const lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-    let result;
-    try {
-      const sheet = ensureScheduleSheet();
-      const data  = sheet.getDataRange().getValues();
-      const datetime = e.parameter.datetime || '';
-      const group    = e.parameter.group || '';
-
-      let targetRow = -1;
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][0]) === datetime) { targetRow = i + 1; break; }
-      }
-
-      if (targetRow < 0) {
-        result = { result: 'error', message: 'slot not found' };
-      } else if (action === 'scheduleBook') {
-        const currentGroup = String(data[targetRow - 1][2] == null ? '' : data[targetRow - 1][2]);
-        if (currentGroup && currentGroup !== group) {
-          result = { result: 'conflict', group: currentGroup };
-        } else {
-          // 1グループにつき1枠までのため、他に予約していた枠があれば解除してから予約する
-          for (let i = 1; i < data.length; i++) {
-            if (i + 1 !== targetRow && String(data[i][2] == null ? '' : data[i][2]) === group) {
-              sheet.getRange(i + 1, 3).setValue('');
-              sheet.getRange(i + 1, 4).setValue('');
-            }
-          }
-          sheet.getRange(targetRow, 3).setValue(group);
-          sheet.getRange(targetRow, 4).setValue(new Date().toLocaleString('ja-JP'));
-          result = { result: 'success' };
-        }
-      } else {
-        const currentGroup = String(data[targetRow - 1][2] == null ? '' : data[targetRow - 1][2]);
-        if (currentGroup === group) {
-          sheet.getRange(targetRow, 3).setValue('');
-          sheet.getRange(targetRow, 4).setValue('');
-        }
-        result = { result: 'success' };
-      }
-    } finally {
-      lock.releaseLock();
-    }
-    const json = JSON.stringify(result);
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + json + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (action === 'presentations') {
-    const sheet = ensurePresentationSheet();
-    const data  = sheet.getDataRange().getValues();
-    const records = data.length <= 1 ? [] : data.slice(1).map(function (row) {
-      const fileId = row[5];
-      let thumbnail = '';
-      if (fileId) {
-        try {
-          const thumb = DriveApp.getFileById(fileId).getThumbnail();
-          if (thumb) {
-            thumbnail = 'data:' + thumb.getContentType() + ';base64,' + Utilities.base64Encode(thumb.getBytes());
-          }
-        } catch (err) {
-          // アップロード直後などサムネイルがまだ生成されていない場合は空のまま返す
-          Logger.log('サムネイル取得に失敗しました: ' + err);
-        }
-      }
-      return {
-        cls: String(row[0] == null ? '' : row[0]),
-        num: String(row[1] == null ? '' : row[1]),
-        name: String(row[2] == null ? '' : row[2]),
-        filename: String(row[3] == null ? '' : row[3]),
-        url: String(row[4] == null ? '' : row[4]),
-        dt: String(row[6] == null ? '' : row[6]),
-        thumbnail: thumbnail
-      };
-    });
-    const json = JSON.stringify(records);
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + json + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (action === 'analyze') {
-    const result = doAnalysis(e);
-    const text   = result.getContent();
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + text + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return result;
-  }
-
-  if (action === 'analyzeAdvice') {
-    const result = doAdviceAnalysis(e);
-    const text   = result.getContent();
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + text + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return result;
-  }
-
-  if (action === 'analyzeDream') {
-    const result = doDreamAnalysis(e);
-    const text   = result.getContent();
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + text + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-    return result;
-  }
-
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-  const data  = sheet.getDataRange().getValues();
-  const records = data.length <= 1 ? [] : data.slice(1).map(row => {
-    const obj = {};
-    KEYS.forEach((k, i) => { obj[k] = String(row[i] == null ? '' : row[i]); });
-    return obj;
-  });
-
-  const json = JSON.stringify(records);
-  if (callback) {
-    return ContentService
-      .createTextOutput(callback + '(' + json + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-  return ContentService
-    .createTextOutput(json)
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function analyzeWithClaude(prompt) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
-  if (!apiKey) throw new Error('スクリプトプロパティに CLAUDE_API_KEY が設定されていません');
-
-  const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    payload: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-  const data = JSON.parse(response.getContentText());
-  return data.content[0].text;
-}
-
-function doAnalysis(e) {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-  const data  = sheet.getDataRange().getValues();
-
-  if (data.length <= 1) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: 'データがありません' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const records = data.slice(1).map(row => {
-    const obj = {};
-    KEYS.forEach((k, i) => { obj[k] = String(row[i] == null ? '' : row[i]); });
-    return obj;
-  });
-
-  const prompt = `あなたは高校生の探究学習を支援するAIです。
-以下は埼玉県立大宮高校の生徒たちの事前課題・当日のワークショップの回答です。
-
-【回答データ】
-${records.map((r, i) => `
-[${i + 1}] ${r.name}（${r.grade}年${r.cls}組${r.num}番）
-・AIが使われている場面：${r.ai1}、${r.ai2}、${r.ai3}
-・もしAIが進化したら：${r.future}
-・アイデア：${r.idea}${r.job ? `\n・将来の夢・職業：${r.job}` : ''}${r.kizuki ? `\n・発表を聞いた後の気づき：${r.kizuki}` : ''}
-`).join('\n')}
-
-上記の回答を分析して、以下の形式でJSONのみを返してください（前置き・後書き・コードブロック不要）：
-
-{"groups":[{"name":"グループ名（10文字以内）","members":["氏名1","氏名2"],"summary":"このグループの傾向・共通点の要約（100字程度）"}],"overall":"全体の傾向・大宮高校生の特徴についてのコメント（150字程度）。「気づき」が記入されている生徒が多い場合は、対話を通じてどのような視点の変化が見られたかにも触れてください。"}
-
-グループは2〜5個程度に分類してください。`;
-
-  const result = analyzeWithClaude(prompt);
-  return ContentService
-    .createTextOutput(JSON.stringify({ result: result }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doAdviceAnalysis(e) {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-  const data  = sheet.getDataRange().getValues();
-
-  if (data.length <= 1) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: 'データがありません' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const records = data.slice(1).map(row => {
-    const obj = {};
-    KEYS.forEach((k, i) => { obj[k] = String(row[i] == null ? '' : row[i]); });
-    return obj;
-  });
-
-  const prompt = `あなたは高校生の探究学習・デザイン思考ワークショップの授業設計の専門家です。
-以下は埼玉県立大宮高校1年生の事前課題の回答データです。
-
-【生徒の回答データ】
-${records.map((r, i) => `[${i+1}] ${r.name}
-・AI場面：${r.ai1}、${r.ai2}、${r.ai3}
-・もしAIが進化したら：${r.future}
-・アイデア：${r.idea}
-・将来の夢：${r.job || '未記入'}`).join('\n\n')}
-
-このクラスの回答傾向をふまえ、以下の4つのPhaseそれぞれについて授業アドバイスをJSONのみで返してください（前置き・後書き・コードブロック不要）：
-
-Phase 0: 事前課題（実施済み）
-Phase 1: 座学90分（問いを立てる・グループワーク）
-Phase 2: NACK5スタジアム見学（フィールドワーク）
-Phase 3: プレゼン90分（発表・振り返り）
-
-{"phases":[
-  {
-    "title": "Phaseのタイトル（例：事前課題 ― 違和感の言語化）",
-    "goal": "このPhaseのねらいを1〜2文で（このクラスの回答傾向をふまえて具体的に）",
-    "activities": ["推奨アクティビティや進行アドバイスを3〜5個の箇条書き（このクラスに合わせた具体的な内容）"],
-    "insight": "生徒の回答から見えたこのクラスならではの特徴・注意点（100字程度）"
-  }
-]}
-
-4つのPhaseすべてを含めてください。`;
-
-  const result = analyzeWithClaude(prompt);
-  return ContentService
-    .createTextOutput(JSON.stringify({ result: result }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doDreamAnalysis(e) {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-  const data  = sheet.getDataRange().getValues();
-
-  if (data.length <= 1) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: 'データがありません' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const records = data.slice(1).map(row => {
-    const obj = {};
-    KEYS.forEach((k, i) => { obj[k] = String(row[i] == null ? '' : row[i]); });
-    return obj;
-  }).filter(r => r.job && r.job.trim() !== '');
-
-  if (records.length === 0) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: '将来の夢・職業のデータがまだありません' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const prompt = `あなたは高校生の探究学習を支援するAIです。
-以下は埼玉県立大宮高校の生徒たちの「将来の夢・職業」の回答です。
-
-【回答データ】
-${records.map((r, i) => `[${i + 1}] ${r.name}（${r.grade}年${r.cls}組${r.num}番）：${r.job}`).join('\n')}
-
-上記の回答を分析して、以下の形式でJSONのみを返してください（前置き・後書き・コードブロック不要）：
-
-{"groups":[{"name":"グループ名（10文字以内）","members":["氏名1","氏名2"],"summary":"このグループの共通点・傾向の説明（100字程度）"}],"overall":"全体の傾向についてのコメント（150字程度）。大宮高校生の将来の夢にどのような特徴や多様性があるか、AIへの関心との関連があれば触れてください。"}
-
-似た方向性の夢・職業でグループ分けし、2〜5個のグループにまとめてください。`;
-
-  const result = analyzeWithClaude(prompt);
-  return ContentService
-    .createTextOutput(JSON.stringify({ result: result }))
-    .setMimeType(ContentService.MimeType.JSON);
 }
