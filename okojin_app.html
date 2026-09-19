@@ -359,6 +359,10 @@
       <div class="field-label">メールアドレス <span class="req">必須</span></div>
       <input type="email" id="f-email" placeholder="例：taro@example.com" oninput="checkRequired()">
     </div>
+    <div class="field">
+      <div class="field-label">紹介人（フルネーム） <span class="req">必須</span></div>
+      <input type="text" id="f-introducer" placeholder="例：梅澤 朝樹" oninput="checkRequired()">
+    </div>
     <div class="divider"></div>
     <div class="field">
       <div class="field-label">現職 <span class="req">必須</span></div>
@@ -448,6 +452,7 @@ const FIELDS = [
   { key: "furigana",     label: "ふりがな",              required: true },
   { key: "graduYear",    label: "卒業年",                required: true },
   { key: "email",        label: "メールアドレス",        required: true },
+  { key: "introducer",   label: "紹介人",                required: true },
   { key: "currentJob",   label: "現職",                  required: true },
   { key: "job",          label: "仕事の内容",            required: true },
   { key: "career",       label: "これまでの経歴",        required: true },

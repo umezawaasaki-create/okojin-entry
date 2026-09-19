@@ -4,10 +4,10 @@
  * 対象スプレッドシート:
  *   https://docs.google.com/spreadsheets/d/1NWLLHauvqE2zRVh31BYsORY48JoqqaTD/edit?gid=2013538450
  *
- * 列構成（既存の名簿シートに合わせています。O・Pは今回追加した列）:
+ * 列構成（既存の名簿シートに合わせています。O・P・Qは今回追加した列）:
  *   A:No  B:役割  C:大高人チャット  D:大高人通信  E:名前  F:ふりがな  G:卒業年
  *   H:仕事の内容  I:現職  J:これまでの経歴  K:大学  L:高校時代の主な活動  M:大学進路を決めた経緯  N:メールアドレス
- *   O:LINE案内（チェックボックス）  P:LINE案内送信日時
+ *   O:LINE案内（チェックボックス）  P:LINE案内送信日時  Q:紹介人
  *
  * 「役割」「大高人チャット」「大高人通信」は手動管理の列のため、自動入力はせず空欄のまま追記します。
  * 「No」は既存データの最大値+1を自動採番します（3桁ゼロ埋め）。
@@ -20,7 +20,8 @@
  * （okojin_app.html 側のGAS_URLは変更不要です）
  *
  * 今回追加した承認フローを使うには、保存後に以下も一度だけ行ってください：
- *   1. 関数選択のプルダウンで setupLineApprovalColumns を選び、▶実行（見出しの追加・チェックボックス化）
+ *   1. 関数選択のプルダウンで setupLineApprovalColumns を選び、▶実行（見出しの追加・チェックボックス化。
+ *      「紹介人」列を追加した際は、既に一度実行済みでもこの関数を再実行すればQ1に見出しが入る）
  *   2. 関数選択のプルダウンで installLineApprovalTrigger を選び、▶実行
  *      （「トリガー」画面から手動で追加すると、対象スプレッドシートの選択を誤りやすいため、
  *       このコードでSPREADSHEET_IDを名指しして確実に紐づける。既存の同名トリガーがあれば
@@ -45,6 +46,7 @@ const LINE_GROUP_URL = 'https://line.me/ti/g/HxtSBb8hAe'; // 大高人LINEグル
 const COL_EMAIL = 14;        // N列
 const COL_LINE_APPROVE = 15; // O列（チェックボックス）
 const COL_LINE_SENT_AT = 16; // P列（送信日時）
+const COL_INTRODUCER = 17;   // Q列（紹介人）
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -76,6 +78,7 @@ function doPost(e) {
       data.email || '',         // N メールアドレス
       false,                    // O LINE案内（未承認）
       '',                       // P LINE案内送信日時（未送信）
+      data.introducer || '',    // Q 紹介人
     ]);
 
     const lastRow = sheet.getLastRow();
@@ -162,7 +165,8 @@ function getRowData_(sheet, row) {
 
 /**
  * 一度だけ手動実行するセットアップ関数。
- * O列・P列に見出しを設定し、O列の既存行をチェックボックス形式にする。
+ * O列・P列・Q列に見出しを設定し、O列の既存行をチェックボックス形式にする。
+ * 既に実行済みでも再実行して問題ない（同じ値を上書きするだけ）。
  * （Apps Scriptエディタの関数選択プルダウンから選んで▶実行する）
  */
 function setupLineApprovalColumns() {
@@ -170,11 +174,12 @@ function setupLineApprovalColumns() {
 
   sheet.getRange(1, COL_LINE_APPROVE).setValue('LINE案内');
   sheet.getRange(1, COL_LINE_SENT_AT).setValue('LINE案内送信日時');
+  sheet.getRange(1, COL_INTRODUCER).setValue('紹介人');
 
   const lastRow = Math.max(sheet.getLastRow(), 2);
   sheet.getRange(2, COL_LINE_APPROVE, lastRow - 1, 1).insertCheckboxes();
 
-  console.log('LINE案内列のセットアップが完了しました');
+  console.log('LINE案内・紹介人列のセットアップが完了しました');
 }
 
 /**
@@ -257,7 +262,8 @@ function notifyAdmin_(data, no) {
       `ふりがな：${data.furigana || ''}\n` +
       `卒業年：${data.graduYear || ''}\n` +
       `メールアドレス：${data.email || ''}\n` +
-      `現職：${data.currentJob || ''}\n\n` +
+      `現職：${data.currentJob || ''}\n` +
+      `紹介人：${data.introducer || ''}\n\n` +
       `内容を確認し、LINEグループに案内してよければ名簿シートのO列「LINE案内」に\n` +
       `チェックを入れてください。その場で本人へ参加案内メールが送信されます。\n\n` +
       `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit?gid=${SHEET_GID}`,
